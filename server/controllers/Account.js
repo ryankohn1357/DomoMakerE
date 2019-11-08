@@ -15,7 +15,7 @@ const login = (request, response) => {
   const req = request;
   const res = response;
 
-    // force cast to strings to cover some security flaws
+  // force cast to strings to cover some security flaws
   const username = `${req.body.username}`;
   const password = `${req.body.pass}`;
 
@@ -38,7 +38,7 @@ const signup = (request, response) => {
   const req = request;
   const res = response;
 
-    // cast to strings to cover up some security flaws
+  // cast to strings to cover up some security flaws
   req.body.username = `${req.body.username}`;
   req.body.pass = `${req.body.pass}`;
   req.body.pass2 = `${req.body.pass2}`;
@@ -79,6 +79,44 @@ const signup = (request, response) => {
   });
 };
 
+const changePassword = (request, response) => {
+  const req = request;
+  const res = response;
+
+  req.body.oldPassword = `${req.body.oldPassword}`;
+  req.body.newPassword = `${req.body.newPassword}`;
+
+  if (!req.body.oldPassword || !req.body.newPassword) {
+    return res.status(400).json({ error: 'RAWR! All fields are requred' });
+  }
+
+  const username = req.session.account.username;
+
+  return Account.AccountModel.authenticate(username, req.body.oldPassword, (err, account) => {
+    if (err || !account) {
+      return res.status(401).json({ error: 'Wrong password' });
+    }
+
+    return Account.AccountModel.generateHash(req.body.newPassword, (salt, hash) => {
+      const updatedAccount = account;
+      updatedAccount.salt = salt;
+      updatedAccount.password = hash;
+
+      const savePromise = updatedAccount.save();
+
+      savePromise.then(() => {
+        req.session.account = Account.AccountModel.toAPI(account);
+        return res.status(204).json({ redirect: '/logout' });
+      });
+
+      savePromise.catch((saveErr) => {
+        console.log(saveErr);
+        return res.status(400).json({ error: 'An error occurred' });
+      });
+    });
+  });
+};
+
 const getToken = (request, response) => {
   const req = request;
   const res = response;
@@ -95,3 +133,4 @@ module.exports.login = login;
 module.exports.logout = logout;
 module.exports.signup = signup;
 module.exports.getToken = getToken;
+module.exports.changePassword = changePassword;
